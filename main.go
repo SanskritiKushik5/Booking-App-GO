@@ -1,50 +1,97 @@
 package main
 
 import (
+	"booking-app/helper"
 	"fmt"
-	"strings"
+	"sync"
+	"time"
 )
 
+const confName = "Go Conf"
+const confTkts int = 50
+var remainTkts int = 50
+// var bookings = make([]map[string]string, 0)
+var bookings = make([]UserData, 0)
+ 
+type UserData struct {
+	fname string
+	lname string
+	email string
+	tkts int
+}
+
+var wg = sync.WaitGroup{}
+
 func main() {
-	conferenceName := "Go Conference"
-	const conferenceTickets int = 50
-	var remainingTickets uint= 50
-
-	fmt.Printf("Welcome to %v booking application\n", conferenceName)
-	fmt.Println("We have total of", conferenceTickets, "tickets and", remainingTickets, "are still available")
-	fmt.Println("Get your tickets here to attend")
-
-	var bookings []string   // slice
+	greetUsers()
 
 	for {
-		var firstName string
-		var lastName string
-		var email string
-		var userTickets uint
+		fname, lname, email, tkts := getInput()
+		isValidName, isValidEmail, isValidTkt := helper.ValidateInput(fname, lname, email, tkts, remainTkts)
+		
+		if isValidName && isValidEmail && isValidTkt {
+			bookTkt(tkts, fname, lname, email)
 
-		fmt.Println("Enter your first name: ")
-		fmt.Scan(&firstName)
+			wg.Add(1)
+			// sendTkt(tkts, fname)      // concurrency
+			go sendTkt(tkts, fname) // same thread go routines
+			fmt.Printf("Bookings: %v\n", getFNames())
 
-		fmt.Println("Enter your last name: ")
-		fmt.Scan(&lastName)
-
-		fmt.Println("Enter your email address: ")
-		fmt.Scan(&email)
-
-		fmt.Println("Enter no. of tickets: ")
-		fmt.Scan(&userTickets)
-
-		remainingTickets = remainingTickets - userTickets
-		bookings = append(bookings, firstName + " " + lastName)
-
-		fmt.Printf("Thank you %v %v for booking %v tickets. You will receive a confirmation email at %v\n", firstName, lastName, email, userTickets)
-		fmt.Printf("%v tickets remaining for %v\n", remainingTickets, conferenceName)
-
-		firstNames := []string{}
-		for _, booking := range bookings {    // _ = blank identifier
-			var names = strings.Fields(booking)
-			firstNames = append(firstNames, names[0])
+			if remainTkts == 0 {
+				fmt.Println("Tickets sold out!")
+				break
+			}
+		} else {
+			if !isValidName {
+				fmt.Println("Name Issue")
+			}
+			if !isValidEmail {
+				fmt.Println("Email Issue")
+			}
+			if !isValidTkt {
+				fmt.Println("Ticket Issue")
+			}
+			fmt.Println("Wrong Input data")
 		}
-		fmt.Printf("The first names bookings are: %v\n", firstNames)
+	} 
+	wg.Wait()
+}
+
+func greetUsers() {
+	fmt.Println("Welcome to", confName)
+	fmt.Printf("Total tickets: %v\t", confTkts)
+	fmt.Printf("Remaining tickets: %v\n", remainTkts)
+	fmt.Println("Book Now!")
+}
+
+func getFNames() []string {
+	fnames := []string{}
+	for _, booking := range bookings {
+		fnames = append(fnames, booking.fname)
 	}
+	return fnames
+}
+
+func getInput() (string, string, string, int) {
+	var fname string 
+	var lname string
+	var email string
+	var tkts int
+	fmt.Printf("Enter first name: ")
+	fmt.Scan(&fname)
+	fmt.Printf("Enter last name: ")
+	fmt.Scan(&lname)
+	fmt.Printf("Enter email id: ")
+	fmt.Scan(&email)
+	fmt.Printf("Enter tickets: ")
+	fmt.Scan(&tkts)
+	return fname, lname, email, tkts
+}
+
+func sendTkt(tkts int, fname string) {
+	time.Sleep(5 * time.Second) // for concurrency
+	var tkt = fmt.Sprintf("%v tickets for %v\n", tkts, fname)
+	fmt.Println("----------------------")
+	fmt.Printf("%v\n", tkt)
+	wg.Done()
 }
